@@ -122,7 +122,11 @@ Extract all entities and relationships from the text above that match the ontolo
         self,
         chunks: List[str],
         ontology: Dict[str, Any],
-        progress_callback=None
+        progress_callback=None,
+        stop_check=None,
+        start_from: int = 0,
+        prior_entities: Optional[Dict] = None,
+        prior_relationships: Optional[List] = None,
     ) -> Dict[str, Any]:
         """
         Extract entities and relationships from multiple text chunks,
@@ -132,15 +136,31 @@ Extract all entities and relationships from the text above that match the ontolo
             chunks: List of text chunks
             ontology: Ontology definition
             progress_callback: Optional callback(message, progress_ratio)
+            stop_check: Optional callable that returns True if build should stop
+            start_from: Chunk index to resume from
+            prior_entities: Previously extracted entities dict to merge into
+            prior_relationships: Previously extracted relationships list to merge into
 
         Returns:
-            Merged dict with 'entities' and 'relationships'
+            Merged dict with 'entities', 'relationships', and 'last_chunk_index'
         """
-        all_entities = {}  # name_lower -> entity dict
-        all_relationships = []  # list of relationship dicts
+        all_entities = prior_entities or {}  # name_lower -> entity dict
+        all_relationships = prior_relationships or []  # list of relationship dicts
         total = len(chunks)
+        last_chunk = start_from
 
-        for i, chunk in enumerate(chunks):
+        for i in range(start_from, total):
+            # Check if stop was requested
+            if stop_check and stop_check():
+                logger.info(f"Build stopped at chunk {i}/{total}")
+                return {
+                    "entities": list(all_entities.values()),
+                    "relationships": all_relationships,
+                    "last_chunk_index": i,
+                    "stopped": True,
+                }
+
+            chunk = chunks[i]
             if progress_callback:
                 progress_callback(
                     f"Extracting entities from chunk {i+1}/{total}...",
@@ -148,6 +168,7 @@ Extract all entities and relationships from the text above that match the ontolo
                 )
 
             result = self.extract(chunk, ontology)
+            last_chunk = i + 1
 
             # Merge entities (deduplicate by name)
             for entity in result.get("entities", []):
@@ -156,11 +177,9 @@ Extract all entities and relationships from the text above that match the ontolo
                     continue
                 key = name.lower()
                 if key in all_entities:
-                    # Merge: keep longer summary, combine types
                     existing = all_entities[key]
                     if len(entity.get("summary", "")) > len(existing.get("summary", "")):
                         existing["summary"] = entity["summary"]
-                    # Keep the more specific type if different
                     if entity.get("type") and entity["type"] != existing.get("type"):
                         existing.setdefault("additional_types", []).append(entity["type"])
                 else:
@@ -174,7 +193,6 @@ Extract all entities and relationships from the text above that match the ontolo
                 if not source or not target:
                     continue
 
-                # Check for duplicate
                 is_dup = any(
                     r.get("source", "").strip().lower() == source and
                     r.get("target", "").strip().lower() == target and
@@ -190,6 +208,8 @@ Extract all entities and relationships from the text above that match the ontolo
         return {
             "entities": list(all_entities.values()),
             "relationships": all_relationships,
+            "last_chunk_index": last_chunk,
+            "stopped": False,
         }
 
     def _format_entity_types(self, ontology: Dict[str, Any]) -> str:

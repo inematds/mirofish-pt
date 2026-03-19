@@ -201,7 +201,8 @@ class LLMClient:
 
         try:
             result = subprocess.run(
-                ["claude", "-p", "--output-format", "json", prompt],
+                ["claude", "-p", "--output-format", "json"],
+                input=prompt,
                 capture_output=True, text=True, timeout=120,
                 cwd="/tmp"
             )

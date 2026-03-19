@@ -112,6 +112,169 @@ def reset_project(project_id: str):
     })
 
 
+@graph_bp.route('/project/<project_id>', methods=['PUT', 'PATCH'])
+def update_project(project_id: str):
+    """
+    Update project metadata (name, etc.)
+    """
+    project = ProjectManager.get_project(project_id)
+
+    if not project:
+        return jsonify({
+            "success": False,
+            "error": f"Project not found: {project_id}"
+        }), 404
+
+    data = request.get_json() or {}
+    if 'name' in data:
+        project.name = data['name']
+    ProjectManager.save_project(project)
+
+    return jsonify({
+        "success": True,
+        "data": project.to_dict()
+    })
+
+
+@graph_bp.route('/project/<project_id>/stop', methods=['POST'])
+def stop_project(project_id: str):
+    """
+    Stop a running graph build task for a project.
+    Saves progress so it can be resumed later.
+    """
+    project = ProjectManager.get_project(project_id)
+
+    if not project:
+        return jsonify({
+            "success": False,
+            "error": f"Project not found: {project_id}"
+        }), 404
+
+    if project.status != ProjectStatus.GRAPH_BUILDING:
+        return jsonify({
+            "success": False,
+            "error": "Project is not currently building"
+        }), 400
+
+    task_id = project.graph_build_task_id
+    if task_id:
+        from ..services.graph_builder import request_stop
+        request_stop(task_id)
+
+    # Set status to paused (we use ONTOLOGY_GENERATED but keep task_id for resume)
+    project.status = ProjectStatus.ONTOLOGY_GENERATED
+    project.error = "paused"
+    ProjectManager.save_project(project)
+
+    return jsonify({
+        "success": True,
+        "message": f"Build stop requested for: {project_id}",
+        "data": project.to_dict()
+    })
+
+
+@graph_bp.route('/project/<project_id>/resume', methods=['POST'])
+def resume_project(project_id: str):
+    """
+    Resume a previously stopped graph build from where it left off.
+    """
+    import json as json_mod
+
+    project = ProjectManager.get_project(project_id)
+
+    if not project:
+        return jsonify({"success": False, "error": f"Project not found: {project_id}"}), 404
+
+    task_id = project.graph_build_task_id
+    if not task_id:
+        return jsonify({"success": False, "error": "No previous build task found"}), 400
+
+    # Load saved progress
+    progress_file = os.path.join(
+        os.path.dirname(__file__), '..', 'uploads', 'tasks',
+        f"{task_id}_progress.json"
+    )
+    if not os.path.exists(progress_file):
+        return jsonify({"success": False, "error": "No saved progress found. Use rebuild instead."}), 400
+
+    with open(progress_file, 'r') as f:
+        progress_data = json_mod.load(f)
+
+    last_chunk = progress_data.get("last_chunk_index", 0)
+    total_chunks = progress_data.get("total_chunks", 0)
+    graph_id = progress_data.get("graph_id")
+    prior_entities = progress_data.get("entities", [])
+    prior_relationships = progress_data.get("relationships", [])
+
+    # Create new task for resumed build
+    from ..models.task import TaskManager as TM
+    from ..services.graph_builder import GraphBuilderService
+    from ..services.text_processor import TextProcessor
+    from ..resources.documents import DocumentStore
+
+    tm = TM()
+    new_task_id = tm.create_task(
+        task_type="graph_build",
+        metadata={
+            "project_id": project_id,
+            "graph_name": project.name or "MiroFish Graph",
+            "resumed_from_chunk": last_chunk,
+            "total_chunks": total_chunks,
+        }
+    )
+
+    project.status = ProjectStatus.GRAPH_BUILDING
+    project.graph_build_task_id = new_task_id
+    project.error = None
+    ProjectManager.save_project(project)
+
+    # Get text and ontology
+    doc_store = DocumentStore()
+    text = doc_store.get_extracted_text(project_id)
+    ontology = project.ontology
+    chunk_size = project.chunk_size or Config.DEFAULT_CHUNK_SIZE
+    chunk_overlap = project.chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP
+
+    import threading
+    builder = GraphBuilderService()
+
+    def run_resume():
+        builder._build_graph_worker(
+            task_id=new_task_id,
+            text=text,
+            ontology=ontology,
+            graph_name=project.name or "MiroFish Graph",
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            batch_size=3,
+            resume_from=last_chunk,
+            existing_graph_id=graph_id,
+            prior_entities=prior_entities,
+            prior_relationships=prior_relationships,
+        )
+        # Cleanup progress file on completion
+        task = tm.get_task(new_task_id)
+        if task and task.get("status") == "completed":
+            try:
+                os.remove(progress_file)
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run_resume, daemon=True)
+    thread.start()
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "project_id": project_id,
+            "task_id": new_task_id,
+            "resumed_from_chunk": last_chunk,
+            "total_chunks": total_chunks,
+            "message": f"Build resumed from chunk {last_chunk}/{total_chunks}",
+        }
+    })
+
+
 # ============== API 1: Upload Files and Generate Ontology ==============
 
 @graph_bp.route('/ontology/generate', methods=['POST'])

@@ -162,6 +162,19 @@
               </div>
             </div>
 
+            <!-- Project Name -->
+            <div class="console-section">
+              <div class="console-header">
+                <span class="console-label">>_ Nome do Projeto</span>
+              </div>
+              <input
+                v-model="formData.projectName"
+                class="name-input"
+                placeholder="Ex: Análise de Opinião Pública"
+                :disabled="loading"
+              />
+            </div>
+
             <!-- Divider -->
             <div class="console-divider">
               <span>Parâmetros de Entrada</span>
@@ -200,6 +213,80 @@
         </div>
       </section>
 
+      <!-- Projetos Existentes -->
+      <section class="projects-section" v-if="projects.length > 0">
+        <div class="projects-header">
+          <span class="diamond-icon">◇</span> Projetos Existentes
+          <button class="refresh-projects-btn" @click="loadProjects" title="Atualizar">↻</button>
+        </div>
+        <div class="projects-grid">
+          <div
+            v-for="proj in projects"
+            :key="proj.project_id"
+            class="project-card"
+            @click="openProject(proj)"
+          >
+            <div class="project-card-header">
+              <span class="project-status-dot" :class="proj.status"></span>
+              <span v-if="editingProject !== proj.project_id" class="project-name">{{ proj.name || 'Projeto Sem Nome' }}</span>
+              <input
+                v-else
+                v-model="editName"
+                class="project-name-input"
+                @click.stop
+                @keyup.enter="saveProjectName(proj)"
+                @keyup.escape="editingProject = null"
+                ref="editInput"
+              />
+            </div>
+            <div class="project-card-id">{{ proj.project_id }}</div>
+            <div class="project-card-meta">
+              <span class="project-card-status">{{ formatStatus(proj.status, proj.error) }}</span>
+              <span class="project-card-files">{{ (proj.files || []).length }} arquivo(s)</span>
+            </div>
+            <div class="project-card-date">{{ formatDate(proj.created_at) }}</div>
+            <div class="project-card-actions" @click.stop>
+              <button
+                v-if="editingProject !== proj.project_id"
+                class="action-btn edit-btn"
+                @click="startEdit(proj)"
+                title="Editar nome"
+              >✎</button>
+              <button
+                v-else
+                class="action-btn save-btn"
+                @click="saveProjectName(proj)"
+                title="Salvar"
+              >✓</button>
+              <button
+                v-if="proj.status === 'graph_building' || proj.status === 'ontology_generating'"
+                class="action-btn stop-btn"
+                @click="stopProject(proj)"
+                title="Parar build"
+              >◼</button>
+              <button
+                v-if="proj.error === 'paused'"
+                class="action-btn resume-btn"
+                @click="resumeProject(proj)"
+                title="Continuar de onde parou"
+              >▶</button>
+              <button
+                v-if="proj.status === 'ontology_generated' || proj.status === 'failed' || proj.error === 'paused'"
+                class="action-btn rebuild-btn"
+                @click="rebuildProject(proj)"
+                title="Refazer do zero"
+              >↻</button>
+              <button
+                class="action-btn delete-btn"
+                @click="deleteProject(proj)"
+                title="Excluir projeto"
+              >✕</button>
+            </div>
+            <div class="project-card-arrow">→</div>
+          </div>
+        </div>
+      </section>
+
       <!-- History Database -->
       <HistoryDatabase />
     </div>
@@ -207,24 +294,135 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
 
 const router = useRouter()
 
 // Form data
 const formData = ref({
-  simulationRequirement: ''
+  simulationRequirement: '',
+  projectName: ''
 })
 
 // File list
 const files = ref([])
 
+// Projects list
+const projects = ref([])
+
 // State
 const loading = ref(false)
 const error = ref('')
 const isDragOver = ref(false)
+
+// Load existing projects
+const loadProjects = async () => {
+  try {
+    const res = await axios.get('/api/graph/project/list')
+    if (res.data.success) {
+      projects.value = res.data.data.sort((a, b) =>
+        new Date(b.created_at) - new Date(a.created_at)
+      )
+    }
+  } catch (e) {
+    console.error('Erro ao carregar projetos:', e)
+  }
+}
+
+const openProject = (proj) => {
+  router.push({ name: 'Process', params: { projectId: proj.project_id } })
+}
+
+const formatStatus = (status, error) => {
+  if (error === 'paused') return 'Pausado'
+  const map = {
+    'created': 'Criado',
+    'ontology_generating': 'Gerando Ontologia',
+    'ontology_generated': 'Ontologia Gerada',
+    'graph_building': 'Construindo Grafo',
+    'graph_completed': 'Grafo Completo',
+    'failed': 'Erro',
+  }
+  return map[status] || status
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
+// Edit project
+const editingProject = ref(null)
+const editName = ref('')
+
+const startEdit = (proj) => {
+  editingProject.value = proj.project_id
+  editName.value = proj.name || ''
+}
+
+const saveProjectName = async (proj) => {
+  try {
+    await axios.patch(`/api/graph/project/${proj.project_id}`, { name: editName.value })
+    proj.name = editName.value
+    editingProject.value = null
+  } catch (e) {
+    console.error('Erro ao salvar nome:', e)
+  }
+}
+
+const stopProject = async (proj) => {
+  if (!confirm('Tem certeza que deseja parar o build deste projeto?')) return
+  try {
+    await axios.post(`/api/graph/project/${proj.project_id}/stop`)
+    await loadProjects()
+  } catch (e) {
+    console.error('Erro ao parar projeto:', e)
+  }
+}
+
+const resumeProject = async (proj) => {
+  try {
+    await axios.post(`/api/graph/project/${proj.project_id}/resume`)
+    await loadProjects()
+  } catch (e) {
+    console.error('Erro ao retomar projeto:', e)
+    alert('Erro ao retomar: ' + (e.response?.data?.error || e.message))
+  }
+}
+
+const rebuildProject = async (proj) => {
+  if (!confirm('Refazer o grafo do zero? Todo o progresso anterior será perdido.')) return
+  try {
+    await axios.post(`/api/graph/build`, {
+      project_id: proj.project_id,
+      force: true
+    })
+    await loadProjects()
+  } catch (e) {
+    console.error('Erro ao refazer projeto:', e)
+    alert('Erro ao refazer: ' + (e.response?.data?.error || e.message))
+  }
+}
+
+const deleteProject = async (proj) => {
+  if (!confirm(`Excluir o projeto "${proj.name || proj.project_id}"? Esta ação não pode ser desfeita.`)) return
+  try {
+    await axios.delete(`/api/graph/project/${proj.project_id}`)
+    projects.value = projects.value.filter(p => p.project_id !== proj.project_id)
+  } catch (e) {
+    console.error('Erro ao excluir projeto:', e)
+  }
+}
+
+onMounted(() => {
+  loadProjects()
+})
 
 // File input ref
 const fileInput = ref(null)
@@ -294,7 +492,7 @@ const startSimulation = () => {
 
   // Store pending upload data
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement)
+    setPendingUpload(files.value, formData.value.simulationRequirement, formData.value.projectName)
 
     // Navigate to Process page immediately (use special identifier for new project)
     router.push({
@@ -865,6 +1063,199 @@ const startSimulation = () => {
   0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
   70% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
   100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+/* Projects Section */
+.projects-section {
+  border-top: 1px solid var(--border);
+  padding-top: 50px;
+  margin-top: 60px;
+}
+
+.projects-header {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 25px;
+}
+
+.refresh-projects-btn {
+  background: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 1rem;
+  color: #999;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  transition: all 0.2s;
+}
+
+.refresh-projects-btn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.project-card:hover {
+  border-color: var(--black);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.project-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.project-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #999;
+  flex-shrink: 0;
+}
+
+.project-status-dot.graph_completed { background: #22c55e; }
+.project-status-dot.graph_building { background: var(--orange); animation: pulse-dot 1.5s infinite; }
+.project-status-dot.ontology_generated { background: #3b82f6; }
+.project-status-dot.ontology_generating { background: #eab308; animation: pulse-dot 1.5s infinite; }
+.project-status-dot.created { background: #999; }
+.project-status-dot.failed { background: #ef4444; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.project-name {
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-card-id {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #bbb;
+  margin-bottom: 12px;
+}
+
+.project-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.project-card-status {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--black);
+}
+
+.project-card-files {
+  color: #999;
+}
+
+.project-card-date {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #bbb;
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #999;
+}
+
+.action-btn:hover { border-color: #999; color: var(--black); }
+.stop-btn:hover { border-color: var(--orange); color: var(--orange); }
+.resume-btn:hover { border-color: #22c55e; color: #22c55e; }
+.rebuild-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+.delete-btn:hover { border-color: #ef4444; color: #ef4444; }
+.save-btn:hover { border-color: #22c55e; color: #22c55e; }
+
+.project-name-input {
+  flex: 1;
+  border: 1px solid var(--orange);
+  background: #fff;
+  padding: 4px 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+}
+
+.name-input {
+  width: 100%;
+  border: 1px solid #DDD;
+  background: #FAFAFA;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.name-input:focus {
+  border-color: var(--orange);
+}
+
+.name-input::placeholder {
+  color: #bbb;
+}
+
+.project-card-arrow {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 1.2rem;
+  color: #ddd;
+  transition: all 0.2s;
+}
+
+.project-card:hover .project-card-arrow {
+  color: var(--orange);
+  transform: translateX(3px);
 }
 
 /* Responsive layout */

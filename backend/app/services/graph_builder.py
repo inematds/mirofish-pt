@@ -19,6 +19,21 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.graph_builder')
 
+# Global registry of active builds - used to signal stop
+_active_builds = {}  # task_id -> {"stop": False}
+
+
+def request_stop(task_id: str):
+    """Request a running build to stop."""
+    if task_id in _active_builds:
+        _active_builds[task_id]["stop"] = True
+        return True
+    return False
+
+
+def is_build_active(task_id: str) -> bool:
+    return task_id in _active_builds
+
 
 @dataclass
 class GraphInfo:
@@ -98,9 +113,14 @@ class GraphBuilderService:
         graph_name: str,
         chunk_size: int,
         chunk_overlap: int,
-        batch_size: int
+        batch_size: int,
+        resume_from: int = 0,
+        existing_graph_id: str = None,
+        prior_entities: Dict = None,
+        prior_relationships: List = None,
     ):
         """Graph build worker thread"""
+        _active_builds[task_id] = {"stop": False}
         try:
             self.task_manager.update_task(
                 task_id,
@@ -109,29 +129,25 @@ class GraphBuilderService:
                 message="Starting graph build..."
             )
 
-            # 1. Create graph
-            graph_id = self.create_graph(graph_name)
-            self.task_manager.update_task(
-                task_id,
-                progress=10,
-                message=f"Graph created: {graph_id}"
-            )
+            # 1. Create or reuse graph
+            if existing_graph_id:
+                graph_id = existing_graph_id
+                self.task_manager.update_task(task_id, progress=10, message=f"Resuming graph: {graph_id}")
+            else:
+                graph_id = self.create_graph(graph_name)
+                self.task_manager.update_task(task_id, progress=10, message=f"Graph created: {graph_id}")
 
             # 2. Set ontology
-            self.set_ontology(graph_id, ontology)
-            self.task_manager.update_task(
-                task_id,
-                progress=15,
-                message="Ontology set"
-            )
+            if not existing_graph_id:
+                self.set_ontology(graph_id, ontology)
+            self.task_manager.update_task(task_id, progress=15, message="Ontology set")
 
             # 3. Split text into chunks
             chunks = TextProcessor.split_text(text, chunk_size, chunk_overlap)
             total_chunks = len(chunks)
             self.task_manager.update_task(
-                task_id,
-                progress=20,
-                message=f"Text split into {total_chunks} chunks"
+                task_id, progress=20,
+                message=f"Text split into {total_chunks} chunks (starting from {resume_from})"
             )
 
             # 4. Extract entities and relationships from chunks
@@ -139,20 +155,52 @@ class GraphBuilderService:
                 progress = 20 + int(prog * 60)  # 20-80%
                 self.task_manager.update_task(task_id, progress=progress, message=msg)
 
-            self.task_manager.update_task(
-                task_id,
-                progress=20,
-                message=f"Extracting entities from {total_chunks} chunks..."
-            )
+            def stop_check():
+                return _active_builds.get(task_id, {}).get("stop", False)
 
-            # Store episodes for tracking
-            episodes = self.db.add_episodes_batch(graph_id, chunks)
-            episode_uuids = [ep.uuid_ for ep in episodes]
+            # Store episodes for tracking (only for new chunks if resuming)
+            if not existing_graph_id:
+                episodes = self.db.add_episodes_batch(graph_id, chunks)
+                episode_uuids = [ep.uuid_ for ep in episodes]
+            else:
+                episode_uuids = []
 
             # Extract entities and relationships using LLM
             extraction_result = self.extractor.extract_batch(
-                chunks, ontology, progress_callback=extraction_progress
+                chunks, ontology,
+                progress_callback=extraction_progress,
+                stop_check=stop_check,
+                start_from=resume_from,
+                prior_entities={e.get("name", "").lower(): e for e in (prior_entities or [])},
+                prior_relationships=prior_relationships,
             )
+
+            # Check if stopped
+            if extraction_result.get("stopped"):
+                last_chunk = extraction_result["last_chunk_index"]
+                # Save progress in task metadata for resume
+                self.task_manager.update_task(
+                    task_id,
+                    status=TaskStatus.FAILED,
+                    message=f"Build parado pelo usuário no chunk {last_chunk}/{total_chunks}",
+                    error="stopped_by_user",
+                )
+                # Save partial results for resume
+                import json
+                progress_file = os.path.join(
+                    os.path.dirname(__file__), '..', 'uploads', 'tasks',
+                    f"{task_id}_progress.json"
+                )
+                with open(progress_file, 'w') as f:
+                    json.dump({
+                        "last_chunk_index": last_chunk,
+                        "total_chunks": total_chunks,
+                        "graph_id": graph_id,
+                        "entities": extraction_result["entities"],
+                        "relationships": extraction_result["relationships"],
+                    }, f)
+                logger.info(f"[{task_id}] Build stopped. Progress saved at chunk {last_chunk}/{total_chunks}")
+                return
 
             # 5. Populate graph with extracted data
             self.task_manager.update_task(
@@ -185,6 +233,8 @@ class GraphBuilderService:
             import traceback
             error_msg = f"{str(e)}\n{traceback.format_exc()}"
             self.task_manager.fail_task(task_id, error_msg)
+        finally:
+            _active_builds.pop(task_id, None)
 
     def create_graph(self, name: str) -> str:
         """Create a graph (public method)"""
