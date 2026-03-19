@@ -5,7 +5,7 @@
       <div class="nav-brand">MIROFISH</div>
       <div class="nav-links">
         <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-link">
-          Visit our Github page <span class="arrow">↗</span>
+          Visite nossa página no Github <span class="arrow">↗</span>
         </a>
       </div>
     </nav>
@@ -15,21 +15,21 @@
       <section class=”hero-section”>
         <div class=”hero-left”>
           <div class=”tag-row”>
-            <span class=”orange-tag”>A Simple & Universal Swarm Intelligence Engine</span>
+            <span class=”orange-tag”>Um Motor de Inteligência de Enxame Simples e Universal</span>
             <span class=”version-text”>/ v0.1-Preview</span>
           </div>
 
           <h1 class=”main-title”>
-            Upload Any Report<br>
-            <span class=”gradient-text”>Predict the Future Instantly</span>
+            Envie Qualquer Relatório<br>
+            <span class=”gradient-text”>Preveja o Futuro Instantaneamente</span>
           </h1>
 
           <div class=”hero-desc”>
             <p>
-              Even with just a single piece of text, <span class=”highlight-bold”>MiroFish</span> can extract reality seeds from it and automatically generate a parallel world composed of up to <span class=”highlight-orange”>millions of Agents</span>. Inject variables from a god's-eye view and find <span class=”highlight-code”>”local optima”</span> in dynamic environments through complex swarm interactions.
+              Mesmo com apenas um único texto, o <span class=”highlight-bold”>MiroFish</span> consegue extrair sementes da realidade e gerar automaticamente um mundo paralelo composto por até <span class=”highlight-orange”>milhões de Agentes</span>. Injete variáveis com uma visão onisciente e encontre <span class=”highlight-code”>”ótimos locais”</span> em ambientes dinâmicos por meio de interações complexas de enxame.
             </p>
             <p class=”slogan-text”>
-              Let the future rehearse among Agents, let decisions prevail after countless trials<span class=”blinking-cursor”>_</span>
+              Deixe o futuro ensaiar entre Agentes, deixe as decisões prevalecerem após incontáveis tentativas<span class=”blinking-cursor”>_</span>
             </p>
           </div>
            
@@ -53,65 +53,65 @@
         <!-- Left Panel: Status & Steps -->
         <div class="left-panel">
           <div class="panel-header">
-            <span class="status-dot">■</span> System Status
+            <span class="status-dot">■</span> Status do Sistema
           </div>
 
-          <h2 class="section-title">Ready</h2>
+          <h2 class="section-title">Pronto</h2>
           <p class="section-desc">
-            Prediction engine on standby. Upload multiple unstructured data files to initialize the simulation sequence.
+            Motor de previsão em espera. Envie múltiplos arquivos de dados não estruturados para inicializar a sequência de simulação.
           </p>
 
           <!-- Data Metric Cards -->
           <div class="metrics-row">
             <div class="metric-card">
-              <div class="metric-value">Low Cost</div>
-              <div class="metric-label">Avg. $5 per standard simulation</div>
+              <div class="metric-value">Baixo Custo</div>
+              <div class="metric-label">Média de $5 por simulação padrão</div>
             </div>
             <div class="metric-card">
-              <div class="metric-value">High Availability</div>
-              <div class="metric-label">Up to millions of Agent simulations</div>
+              <div class="metric-value">Alta Disponibilidade</div>
+              <div class="metric-label">Até milhões de simulações com Agentes</div>
             </div>
           </div>
 
           <!-- Simulation Workflow Steps -->
           <div class="steps-container">
             <div class="steps-header">
-               <span class="diamond-icon">◇</span> Workflow Sequence
+               <span class="diamond-icon">◇</span> Sequência do Fluxo
             </div>
             <div class="workflow-list">
               <div class="workflow-item">
                 <span class="step-num">01</span>
                 <div class="step-info">
-                  <div class="step-title">Graph Build</div>
-                  <div class="step-desc">Reality seed extraction & individual/group memory injection & GraphRAG construction</div>
+                  <div class="step-title">Construção do Grafo</div>
+                  <div class="step-desc">Extração de sementes da realidade & injeção de memória individual/coletiva & construção do GraphRAG</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">02</span>
                 <div class="step-info">
-                  <div class="step-title">Environment Setup</div>
-                  <div class="step-desc">Entity-relation extraction & persona generation & environment config Agent injection of simulation parameters</div>
+                  <div class="step-title">Configuração do Ambiente</div>
+                  <div class="step-desc">Extração de entidades e relações & geração de personas & configuração do ambiente e injeção de parâmetros de simulação via Agente</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">03</span>
                 <div class="step-info">
-                  <div class="step-title">Start Simulation</div>
-                  <div class="step-desc">Dual-platform parallel simulation & auto-parse prediction requirements & dynamic temporal memory updates</div>
+                  <div class="step-title">Iniciar Simulação</div>
+                  <div class="step-desc">Simulação paralela em duas plataformas & análise automática de requisitos de previsão & atualizações dinâmicas de memória temporal</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">04</span>
                 <div class="step-info">
-                  <div class="step-title">Report Generation</div>
-                  <div class="step-desc">ReportAgent has a rich toolset for deep interaction with the post-simulation environment</div>
+                  <div class="step-title">Geração de Relatório</div>
+                  <div class="step-desc">O ReportAgent possui um conjunto rico de ferramentas para interação profunda com o ambiente pós-simulação</div>
                 </div>
               </div>
               <div class="workflow-item">
                 <span class="step-num">05</span>
                 <div class="step-info">
-                  <div class="step-title">Deep Interaction</div>
-                  <div class="step-desc">Chat with any individual in the simulated world & converse with ReportAgent</div>
+                  <div class="step-title">Interação Profunda</div>
+                  <div class="step-desc">Converse com qualquer indivíduo no mundo simulado & interaja com o ReportAgent</div>
                 </div>
               </div>
             </div>
@@ -124,8 +124,8 @@
             <!-- Upload Area -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">01 / Reality Seeds</span>
-                <span class="console-meta">Supported formats: PDF, MD, TXT</span>
+                <span class="console-label">01 / Sementes da Realidade</span>
+                <span class="console-meta">Formatos suportados: PDF, MD, TXT</span>
               </div>
               
               <div 
@@ -148,8 +148,8 @@
                 
                 <div v-if="files.length === 0" class="upload-placeholder">
                   <div class="upload-icon">↑</div>
-                  <div class="upload-title">Drag & drop files to upload</div>
-                  <div class="upload-hint">or click to browse file system</div>
+                  <div class="upload-title">Arraste e solte arquivos para enviar</div>
+                  <div class="upload-hint">ou clique para navegar no sistema de arquivos</div>
                 </div>
                 
                 <div v-else class="file-list">
@@ -164,23 +164,23 @@
 
             <!-- Divider -->
             <div class="console-divider">
-              <span>Input Parameters</span>
+              <span>Parâmetros de Entrada</span>
             </div>
 
             <!-- Input Area -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">>_ 02 / Simulation Prompt</span>
+                <span class="console-label">>_ 02 / Prompt de Simulação</span>
               </div>
               <div class="input-wrapper">
                 <textarea
                   v-model="formData.simulationRequirement"
                   class="code-input"
-                  placeholder="// Enter simulation or prediction requirements in natural language (e.g. If a university announces the reversal of a disciplinary action, what public opinion trends would emerge?)"
+                  placeholder="// Insira requisitos de simulação ou previsão em linguagem natural (ex.: Se uma universidade anunciar a reversão de uma ação disciplinar, quais tendências de opinião pública surgiriam?)"
                   rows="6"
                   :disabled="loading"
                 ></textarea>
-                <div class="model-badge">Engine: MiroFish-V1.0</div>
+                <div class="model-badge">Motor: MiroFish-V1.0</div>
               </div>
             </div>
 
@@ -191,8 +191,8 @@
                 @click="startSimulation"
                 :disabled="!canSubmit || loading"
               >
-                <span v-if="!loading">Launch Engine</span>
-                <span v-else>Initializing...</span>
+                <span v-if="!loading">Iniciar Motor</span>
+                <span v-else>Inicializando...</span>
                 <span class="btn-arrow">→</span>
               </button>
             </div>

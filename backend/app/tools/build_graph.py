@@ -9,7 +9,6 @@ from ..core.task_manager import TaskManager, TaskStatus
 from ..models.project import ProjectStatus
 from ..resources.documents import DocumentStore
 from ..resources.projects import ProjectStore
-from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.logger import get_logger
 
@@ -97,6 +96,7 @@ class BuildGraphTool:
                     message="Initializing graph build service...",
                 )
 
+                from ..services.graph_builder import GraphBuilderService
                 builder = GraphBuilderService()
 
                 self.task_manager.update_task(task_id, message="Splitting text into chunks...", progress=5)

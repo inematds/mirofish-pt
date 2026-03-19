@@ -15,7 +15,7 @@
             :class="{ active: viewMode === mode }"
             @click="viewMode = mode"
           >
-            {{ { graph: 'Graph', split: 'Dual Panel', workbench: 'Workbench' }[mode] }}
+            {{ { graph: 'Grafo', split: 'Painel Duplo', workbench: 'Painel de Trabalho' }[mode] }}
           </button>
         </div>
       </div>
@@ -23,7 +23,7 @@
       <div class="header-right">
         <div class="workflow-step">
           <span class="step-num">Step 4/5</span>
-          <span class="step-name">Report Generation</span>
+          <span class="step-name">Geração de Relatório</span>
         </div>
         <div class="step-divider"></div>
         <span class="status-indicator" :class="statusClass">
@@ -109,9 +109,9 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (currentStatus.value === 'error') return 'Error'
-  if (currentStatus.value === 'completed') return 'Completed'
-  return 'Generating'
+  if (currentStatus.value === 'error') return 'Erro'
+  if (currentStatus.value === 'completed') return 'Concluído'
+  return 'Gerando'
 })
 
 // --- Helpers ---

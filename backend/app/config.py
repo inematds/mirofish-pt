@@ -4,7 +4,24 @@ Loads configuration from the project root .env file
 """
 
 import os
+import secrets
 from dotenv import load_dotenv
+
+
+def _get_bool_env(key, default=False):
+    """Get a boolean value from environment variable."""
+    val = os.environ.get(key, '')
+    if not val:
+        return default
+    return val.lower() in ('true', '1', 'yes')
+
+
+def _get_cors_origins():
+    """Get CORS origins from environment or return defaults."""
+    origins = os.environ.get('CORS_ORIGINS', '')
+    if origins:
+        return [o.strip() for o in origins.split(',')]
+    return ['http://localhost:3000', 'http://localhost:5173']
 
 # Load the .env file from project root
 # Path: MiroFish/.env (relative to backend/app/config.py)

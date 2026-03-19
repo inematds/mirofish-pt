@@ -15,7 +15,7 @@
             :class="{ active: viewMode === mode }"
             @click="viewMode = mode"
           >
-            {{ { graph: 'Graph', split: 'Dual Panel', workbench: 'Workbench' }[mode] }}
+            {{ { graph: 'Grafo', split: 'Painel Duplo', workbench: 'Painel de Trabalho' }[mode] }}
           </button>
         </div>
       </div>
@@ -91,7 +91,7 @@ const viewMode = ref('split') // graph | split | workbench
 
 // Step State
 const currentStep = ref(1) // 1: Graph Build, 2: Environment Setup, 3: Start Simulation, 4: Report Generation, 5: Deep Interaction
-const stepNames = ['Graph Build', 'Environment Setup', 'Start Simulation', 'Report Generation', 'Deep Interaction']
+const stepNames = ['Construção do Grafo', 'Configuração do Ambiente', 'Iniciar Simulação', 'Geração de Relatório', 'Interação Profunda']
 
 // Data State
 const currentProjectId = ref(route.params.projectId)
@@ -130,11 +130,11 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (error.value) return 'Error'
-  if (currentPhase.value >= 2) return 'Ready'
-  if (currentPhase.value === 1) return 'Building Graph'
-  if (currentPhase.value === 0) return 'Generating Ontology'
-  return 'Initializing'
+  if (error.value) return 'Erro'
+  if (currentPhase.value >= 2) return 'Pronto'
+  if (currentPhase.value === 1) return 'Construindo Grafo'
+  if (currentPhase.value === 0) return 'Gerando Ontologia'
+  return 'Inicializando'
 })
 
 // --- Helpers ---

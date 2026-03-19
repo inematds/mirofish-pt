@@ -1,37 +1,37 @@
 <template>
   <div class="workbench-panel">
     <div class="scroll-container">
-      <!-- Step 01: Ontology -->
+      <!-- Etapa 01: Ontologia -->
       <div class="step-card" :class="{ 'active': currentPhase === 0, 'completed': currentPhase > 0 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">01</span>
-            <span class="step-title">Ontology Generation</span>
+            <span class="step-title">Geração de Ontologia</span>
           </div>
           <div class="step-status">
-            <span v-if="currentPhase > 0" class="badge success">Completed</span>
-            <span v-else-if="currentPhase === 0" class="badge processing">Generating</span>
-            <span v-else class="badge pending">Waiting</span>
+            <span v-if="currentPhase > 0" class="badge success">Concluído</span>
+            <span v-else-if="currentPhase === 0" class="badge processing">Gerando</span>
+            <span v-else class="badge pending">Aguardando</span>
           </div>
         </div>
         
         <div class="card-content">
           <p class="api-note">POST /api/graph/ontology/generate</p>
           <p class="description">
-            LLM analyzes document content and simulation requirements, extracts reality seeds, and auto-generates appropriate ontology structures
+            O LLM analisa o conteúdo dos documentos e os requisitos de simulação, extrai sementes de realidade e gera automaticamente estruturas de ontologia apropriadas
           </p>
 
-          <!-- Loading / Progress -->
+          <!-- Carregamento / Progresso -->
           <div v-if="currentPhase === 0 && ontologyProgress" class="progress-section">
             <div class="spinner-sm"></div>
-            <span>{{ ontologyProgress.message || 'Analyzing documents...' }}</span>
+            <span>{{ ontologyProgress.message || 'Analisando documentos...' }}</span>
           </div>
 
-          <!-- Detail Overlay -->
+          <!-- Sobreposição de Detalhes -->
           <div v-if="selectedOntologyItem" class="ontology-detail-overlay">
             <div class="detail-header">
                <div class="detail-title-group">
-                  <span class="detail-type-badge">{{ selectedOntologyItem.itemType === 'entity' ? 'ENTITY' : 'RELATION' }}</span>
+                  <span class="detail-type-badge">{{ selectedOntologyItem.itemType === 'entity' ? 'ENTIDADE' : 'RELAÇÃO' }}</span>
                   <span class="detail-name">{{ selectedOntologyItem.name }}</span>
                </div>
                <button class="close-btn" @click="selectedOntologyItem = null">×</button>
@@ -39,9 +39,9 @@
             <div class="detail-body">
                <div class="detail-desc">{{ selectedOntologyItem.description }}</div>
                
-               <!-- Attributes -->
+               <!-- Atributos -->
                <div class="detail-section" v-if="selectedOntologyItem.attributes?.length">
-                  <span class="section-label">ATTRIBUTES</span>
+                  <span class="section-label">ATRIBUTOS</span>
                   <div class="attr-list">
                      <div v-for="attr in selectedOntologyItem.attributes" :key="attr.name" class="attr-item">
                         <span class="attr-name">{{ attr.name }}</span>
@@ -51,17 +51,17 @@
                   </div>
                </div>
 
-               <!-- Examples (Entity) -->
+               <!-- Exemplos (Entidade) -->
                <div class="detail-section" v-if="selectedOntologyItem.examples?.length">
-                  <span class="section-label">EXAMPLES</span>
+                  <span class="section-label">EXEMPLOS</span>
                   <div class="example-list">
                      <span v-for="ex in selectedOntologyItem.examples" :key="ex" class="example-tag">{{ ex }}</span>
                   </div>
                </div>
 
-               <!-- Source/Target (Relation) -->
+               <!-- Origem/Destino (Relação) -->
                <div class="detail-section" v-if="selectedOntologyItem.source_targets?.length">
-                  <span class="section-label">CONNECTIONS</span>
+                  <span class="section-label">CONEXÕES</span>
                   <div class="conn-list">
                      <div v-for="(conn, idx) in selectedOntologyItem.source_targets" :key="idx" class="conn-item">
                         <span class="conn-node">{{ conn.source }}</span>
@@ -73,9 +73,9 @@
             </div>
           </div>
 
-          <!-- Generated Entity Tags -->
+          <!-- Tags de Entidade Geradas -->
           <div v-if="projectData?.ontology?.entity_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
-            <span class="tag-label">GENERATED ENTITY TYPES</span>
+            <span class="tag-label">TIPOS DE ENTIDADE GERADOS</span>
             <div class="tags-list">
               <span 
                 v-for="entity in projectData.ontology.entity_types" 
@@ -88,9 +88,9 @@
             </div>
           </div>
 
-          <!-- Generated Relation Tags -->
+          <!-- Tags de Relação Geradas -->
           <div v-if="projectData?.ontology?.edge_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
-            <span class="tag-label">GENERATED RELATION TYPES</span>
+            <span class="tag-label">TIPOS DE RELAÇÃO GERADOS</span>
             <div class="tags-list">
               <span 
                 v-for="rel in projectData.ontology.edge_types" 
@@ -105,75 +105,75 @@
         </div>
       </div>
 
-      <!-- Step 02: Graph Build -->
+      <!-- Etapa 02: Construção do Grafo -->
       <div class="step-card" :class="{ 'active': currentPhase === 1, 'completed': currentPhase > 1 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">02</span>
-            <span class="step-title">GraphRAG Build</span>
+            <span class="step-title">Construção GraphRAG</span>
           </div>
           <div class="step-status">
-            <span v-if="currentPhase > 1" class="badge success">Completed</span>
+            <span v-if="currentPhase > 1" class="badge success">Concluído</span>
             <span v-else-if="currentPhase === 1" class="badge processing">{{ buildProgress?.progress || 0 }}%</span>
-            <span v-else class="badge pending">Waiting</span>
+            <span v-else class="badge pending">Aguardando</span>
           </div>
         </div>
 
         <div class="card-content">
           <p class="api-note">POST /api/graph/build</p>
           <p class="description">
-            Based on the generated ontology, documents are auto-chunked and written into KuzuDB to build a knowledge graph, extracting entities and relationships, forming temporal memory and community summaries
+            Com base na ontologia gerada, os documentos são automaticamente segmentados e gravados no KuzuDB para construir um grafo de conhecimento, extraindo entidades e relacionamentos, formando memória temporal e resumos de comunidade
           </p>
           
-          <!-- Stats Cards -->
+          <!-- Cartões de Estatísticas -->
           <div class="stats-grid">
             <div class="stat-card">
               <span class="stat-value">{{ graphStats.nodes }}</span>
-              <span class="stat-label">Entity Nodes</span>
+              <span class="stat-label">Nós de Entidade</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ graphStats.edges }}</span>
-              <span class="stat-label">Relationship Edges</span>
+              <span class="stat-label">Arestas de Relacionamento</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ graphStats.types }}</span>
-              <span class="stat-label">Schema Types</span>
+              <span class="stat-label">Tipos de Schema</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Step 03: Complete -->
+      <!-- Etapa 03: Completa -->
       <div class="step-card" :class="{ 'active': currentPhase === 2, 'completed': currentPhase >= 2 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">03</span>
-            <span class="step-title">Build Complete</span>
+            <span class="step-title">Construção Completa</span>
           </div>
           <div class="step-status">
-            <span v-if="currentPhase >= 2" class="badge accent">In Progress</span>
+            <span v-if="currentPhase >= 2" class="badge accent">Em Andamento</span>
           </div>
         </div>
         
         <div class="card-content">
           <p class="api-note">POST /api/simulation/create</p>
-          <p class="description">Graph build is complete. Proceed to the next step for simulation environment setup.</p>
+          <p class="description">A construção do grafo está completa. Prossiga para a próxima etapa de configuração do ambiente de simulação.</p>
           <button 
             class="action-btn" 
             :disabled="currentPhase < 2 || creatingSimulation"
             @click="handleEnterEnvSetup"
           >
             <span v-if="creatingSimulation" class="spinner-sm"></span>
-            {{ creatingSimulation ? 'Creating...' : 'Go to Environment Setup ➝' }}
+            {{ creatingSimulation ? 'Criando...' : 'Ir para Configuração do Ambiente ➝' }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Info / Logs -->
+    <!-- Informações / Logs do Sistema -->
     <div class="system-logs">
       <div class="log-header">
-        <span class="log-title">SYSTEM DASHBOARD</span>
+        <span class="log-title">PAINEL DO SISTEMA</span>
         <span class="log-id">{{ projectData?.project_id || 'NO_PROJECT' }}</span>
       </div>
       <div class="log-content" ref="logContent">
@@ -208,10 +208,10 @@ const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
 
-// Go to environment setup - create simulation and navigate
+// Ir para configuração do ambiente - criar simulação e navegar
 const handleEnterEnvSetup = async () => {
   if (!props.projectData?.project_id || !props.projectData?.graph_id) {
-    console.error('Missing project or graph information')
+    console.error('Informações de projeto ou grafo ausentes')
     return
   }
   
@@ -226,18 +226,18 @@ const handleEnterEnvSetup = async () => {
     })
     
     if (res.success && res.data?.simulation_id) {
-      // Navigate to simulation page
+      // Navegar para página de simulação
       router.push({
         name: 'Simulation',
         params: { simulationId: res.data.simulation_id }
       })
     } else {
-      console.error('Failed to create simulation:', res.error)
-      alert('Failed to create simulation: ' + (res.error || 'Unknown error'))
+      console.error('Falha ao criar simulação:', res.error)
+      alert('Falha ao criar simulação: ' + (res.error || 'Erro desconhecido'))
     }
   } catch (err) {
-    console.error('Simulation creation error:', err)
-    alert('Simulation creation error: ' + err.message)
+    console.error('Erro ao criar simulação:', err)
+    alert('Erro ao criar simulação: ' + err.message)
   } finally {
     creatingSimulation.value = false
   }
@@ -260,7 +260,7 @@ const formatDate = (dateStr) => {
   return d.toLocaleTimeString('en-US', { hour12: false }) + '.' + d.getMilliseconds()
 }
 
-// Auto-scroll logs
+// Auto-scroll dos logs
 watch(() => props.systemLogs.length, () => {
   nextTick(() => {
     if (logContent.value) {
