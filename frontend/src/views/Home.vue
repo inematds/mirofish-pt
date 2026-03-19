@@ -213,6 +213,95 @@
         </div>
       </section>
 
+      <!-- LLM Configuration Panel -->
+      <section class="llm-config-section">
+        <div class="llm-config-header" @click="llmConfigOpen = !llmConfigOpen">
+          <div class="llm-config-title">
+            <span class="diamond-icon">◇</span> Configuração de LLMs
+          </div>
+          <span class="llm-toggle-icon">{{ llmConfigOpen ? '−' : '+' }}</span>
+        </div>
+
+        <div v-show="llmConfigOpen" class="llm-config-body">
+          <!-- Presets Row -->
+          <div class="llm-presets-row">
+            <span class="llm-presets-label">Presets:</span>
+            <button
+              v-for="preset in llmPresets"
+              :key="preset.key"
+              class="llm-preset-btn"
+              :class="{ active: activePreset === preset.key }"
+              @click="applyPreset(preset.key)"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+
+          <!-- Stage Rows -->
+          <div class="llm-stages-list">
+            <div v-for="stage in llmStages" :key="stage.num" class="llm-stage-row">
+              <div class="llm-stage-header">
+                <span class="step-num">{{ stage.num }}</span>
+                <div class="llm-stage-info">
+                  <div class="llm-stage-name">{{ stage.name }}</div>
+                  <div class="llm-stage-desc">{{ stage.desc }}</div>
+                </div>
+              </div>
+              <div class="llm-stage-controls">
+                <select
+                  v-model="llmConfig[stage.key].provider"
+                  class="llm-select"
+                  @change="onProviderChange(stage.key)"
+                >
+                  <option v-for="p in llmProviders" :key="p.value" :value="p.value">{{ p.label }}</option>
+                </select>
+
+                <!-- Model selector (for providers with model lists) -->
+                <select
+                  v-if="getModelsForProvider(llmConfig[stage.key].provider).length > 0"
+                  v-model="llmConfig[stage.key].model"
+                  class="llm-select llm-select-model"
+                >
+                  <option v-for="m in getModelsForProvider(llmConfig[stage.key].provider)" :key="m" :value="m">{{ m }}</option>
+                </select>
+
+                <!-- API Key (for providers that need it) -->
+                <input
+                  v-if="providerDefaults[llmConfig[stage.key].provider]?.needsKey"
+                  v-model="llmConfig[stage.key].apiKey"
+                  class="llm-custom-input"
+                  placeholder="API Key"
+                  type="password"
+                />
+
+                <!-- Custom provider fields -->
+                <div v-if="llmConfig[stage.key].provider === 'custom'" class="llm-custom-fields">
+                  <input
+                    v-model="llmConfig[stage.key].baseUrl"
+                    class="llm-custom-input"
+                    placeholder="Base URL"
+                  />
+                  <input
+                    v-model="llmConfig[stage.key].model"
+                    class="llm-custom-input"
+                    placeholder="Model Name"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <div class="llm-save-row">
+            <button class="llm-save-btn" @click="saveLlmConfig">
+              <span v-if="!llmSaving">Salvar Configuração</span>
+              <span v-else>Salvando...</span>
+            </button>
+            <span v-if="llmSaveMsg" class="llm-save-msg" :class="llmSaveMsgType">{{ llmSaveMsg }}</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Projetos Existentes -->
       <section class="projects-section" v-if="projects.length > 0">
         <div class="projects-header">
@@ -422,7 +511,195 @@ const deleteProject = async (proj) => {
 
 onMounted(() => {
   loadProjects()
+  loadLlmConfig()
 })
+
+// ── LLM Configuration ──
+const llmConfigOpen = ref(false)
+const llmSaving = ref(false)
+const llmSaveMsg = ref('')
+const llmSaveMsgType = ref('success')
+const activePreset = ref(null)
+
+const llmProviders = [
+  { value: 'claude-cli', label: 'Claude CLI' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
+  { value: 'groq', label: 'Groq (grátis)' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'ollama', label: 'Ollama Local' },
+  { value: 'custom', label: 'Personalizado' },
+]
+
+const providerDefaults = {
+  'claude-cli': { baseUrl: '', model: '', needsKey: false },
+  'openai': { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', needsKey: true },
+  'anthropic': { baseUrl: 'https://api.anthropic.com', model: 'claude-sonnet-4-20250514', needsKey: true },
+  'groq': { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', needsKey: true },
+  'openrouter': { baseUrl: 'https://openrouter.ai/api/v1', model: 'qwen/qwen-2.5-72b-instruct', needsKey: true },
+  'ollama': { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:32b', needsKey: false },
+  'custom': { baseUrl: '', model: '', needsKey: true },
+}
+
+const groqModels = [
+  'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-90b-vision-preview',
+  'mixtral-8x7b-32768', 'gemma2-9b-it', 'qwen-qwq-32b',
+]
+
+const openrouterModels = [
+  'qwen/qwen-2.5-72b-instruct', 'anthropic/claude-sonnet-4-20250514',
+  'openai/gpt-4o-mini', 'meta-llama/llama-3.3-70b-instruct',
+  'google/gemini-2.0-flash-001', 'deepseek/deepseek-chat-v3-0324',
+  'mistralai/mistral-large-2411',
+]
+
+const openaiModels = [
+  'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'o4-mini',
+]
+
+const anthropicModels = [
+  'claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-haiku-4-20250514',
+]
+
+const llmStages = [
+  { num: '01', key: 'ontology', name: 'Ontologia / Grafo', desc: 'Extração de entidades, relações e construção do grafo de conhecimento' },
+  { num: '02', key: 'personas', name: 'Geração de Personas', desc: 'Criação de perfis e personalidades dos agentes simulados' },
+  { num: '03', key: 'simconfig', name: 'Config. de Simulação', desc: 'Definição de parâmetros, ambiente e regras da simulação' },
+  { num: '04', key: 'simulation', name: 'Simulação OASIS', desc: 'Execução da simulação em larga escala com interações de agentes' },
+  { num: '05', key: 'report', name: 'Relatório', desc: 'Análise pós-simulação e geração de relatório estruturado' },
+  { num: '06', key: 'chat', name: 'Chat / Interação', desc: 'Conversa interativa com agentes e o ReportAgent' },
+]
+
+const llmPresets = [
+  { key: 'quality', label: 'Qualidade Máxima' },
+  { key: 'economic', label: 'Econômico' },
+  { key: 'local', label: '100% Local' },
+]
+
+const defaultStageConfig = () => ({
+  provider: 'claude-cli',
+  model: '',
+  apiKey: '',
+  baseUrl: '',
+})
+
+const llmConfig = ref({
+  ontology: defaultStageConfig(),
+  personas: defaultStageConfig(),
+  simconfig: defaultStageConfig(),
+  simulation: defaultStageConfig(),
+  report: defaultStageConfig(),
+  chat: defaultStageConfig(),
+})
+
+const ollamaModels = ref([
+  'qwen3.5:35b-a3b', 'qwen-agentic:latest', 'qwen2.5:72b-instruct-q3_K_M',
+  'qwen2.5:32b', 'qwen2.5:14b', 'llama3.1:70b', 'llama3.1:8b',
+  'llama3.2:latest', 'command-r:35b', 'command-r-32k:latest',
+  'deepseek-r1:14b',
+])
+
+const onProviderChange = (stageKey) => {
+  activePreset.value = null
+  const provider = llmConfig.value[stageKey].provider
+  const defaults = providerDefaults[provider] || {}
+  llmConfig.value[stageKey].model = defaults.model || ''
+  llmConfig.value[stageKey].baseUrl = defaults.baseUrl || ''
+  if (!defaults.needsKey) {
+    llmConfig.value[stageKey].apiKey = ''
+  }
+}
+
+const getModelsForProvider = (provider) => {
+  switch (provider) {
+    case 'ollama': return ollamaModels.value
+    case 'groq': return groqModels
+    case 'openrouter': return openrouterModels
+    case 'openai': return openaiModels
+    case 'anthropic': return anthropicModels
+    default: return []
+  }
+}
+
+const applyPreset = (presetKey) => {
+  activePreset.value = presetKey
+  const stages = Object.keys(llmConfig.value)
+  if (presetKey === 'quality') {
+    stages.forEach(k => {
+      llmConfig.value[k] = defaultStageConfig()
+    })
+  } else if (presetKey === 'economic') {
+    stages.forEach(k => {
+      llmConfig.value[k] = defaultStageConfig()
+    })
+    llmConfig.value.simulation.provider = 'ollama'
+    llmConfig.value.simulation.model = 'qwen2.5:32b'
+  } else if (presetKey === 'local') {
+    stages.forEach(k => {
+      llmConfig.value[k] = { provider: 'ollama', model: 'qwen2.5:32b', apiKey: '', baseUrl: '' }
+    })
+  }
+}
+
+const fetchOllamaModels = async () => {
+  try {
+    // Try backend API first
+    const res = await axios.get('/api/llm/ollama-models')
+    if (res.data && Array.isArray(res.data.models)) {
+      ollamaModels.value = res.data.models
+      return
+    }
+  } catch {
+    // Try Ollama directly
+    try {
+      const res = await axios.get('http://localhost:11434/api/tags')
+      if (res.data && Array.isArray(res.data.models)) {
+        ollamaModels.value = res.data.models.map(m => m.name)
+      }
+    } catch {
+      // Keep hardcoded defaults
+    }
+  }
+}
+
+const loadLlmConfig = () => {
+  const saved = localStorage.getItem('mirofish_llm_config')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      Object.keys(parsed).forEach(k => {
+        if (llmConfig.value[k]) {
+          llmConfig.value[k] = { ...defaultStageConfig(), ...parsed[k] }
+        }
+      })
+    } catch {
+      // ignore
+    }
+  }
+  fetchOllamaModels()
+}
+
+const saveLlmConfig = async () => {
+  llmSaving.value = true
+  llmSaveMsg.value = ''
+  try {
+    localStorage.setItem('mirofish_llm_config', JSON.stringify(llmConfig.value))
+    // Attempt backend save (endpoint may not exist yet)
+    try {
+      await axios.post('/api/config/llm', llmConfig.value)
+    } catch {
+      // Backend not ready yet, localStorage save is sufficient
+    }
+    llmSaveMsgType.value = 'success'
+    llmSaveMsg.value = 'Configuração salva com sucesso!'
+  } catch (e) {
+    llmSaveMsgType.value = 'error'
+    llmSaveMsg.value = 'Erro ao salvar configuração.'
+  } finally {
+    llmSaving.value = false
+    setTimeout(() => { llmSaveMsg.value = '' }, 3000)
+  }
+}
 
 // File input ref
 const fileInput = ref(null)
@@ -1258,6 +1535,233 @@ const startSimulation = () => {
   transform: translateX(3px);
 }
 
+/* LLM Configuration Section */
+.llm-config-section {
+  border-top: 1px solid var(--border);
+  padding-top: 50px;
+  margin-top: 60px;
+}
+
+.llm-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 12px 0;
+  user-select: none;
+}
+
+.llm-config-title {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-toggle-icon {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  color: #999;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.llm-config-header:hover .llm-toggle-icon {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.llm-config-body {
+  border: 1px solid var(--border);
+  padding: 30px;
+  margin-top: 15px;
+}
+
+/* Presets */
+.llm-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.llm-presets-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #999;
+  letter-spacing: 0.5px;
+}
+
+.llm-preset-btn {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--black);
+}
+
+.llm-preset-btn:hover {
+  border-color: var(--black);
+}
+
+.llm-preset-btn.active {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+
+/* Stage Rows */
+.llm-stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.llm-stage-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.llm-stage-row:last-child {
+  border-bottom: none;
+}
+
+.llm-stage-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.llm-stage-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.llm-stage-name {
+  font-weight: 520;
+  font-size: 0.95rem;
+  margin-bottom: 3px;
+}
+
+.llm-stage-desc {
+  font-size: 0.8rem;
+  color: var(--gray-text);
+  line-height: 1.4;
+}
+
+.llm-stage-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 200px;
+}
+
+.llm-select {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: #FAFAFA;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.llm-select:focus {
+  border-color: var(--orange);
+}
+
+.llm-select-model {
+  font-size: 0.75rem;
+}
+
+.llm-custom-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.llm-custom-input {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: #FAFAFA;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.llm-custom-input:focus {
+  border-color: var(--orange);
+}
+
+.llm-custom-input::placeholder {
+  color: #bbb;
+}
+
+/* Save Row */
+.llm-save-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 25px;
+}
+
+.llm-save-btn {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 12px 28px;
+  background: var(--black);
+  color: var(--white);
+  border: 1px solid var(--black);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.llm-save-btn:hover {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
+.llm-save-msg {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.llm-save-msg.success {
+  color: #22c55e;
+}
+
+.llm-save-msg.error {
+  color: #ef4444;
+}
+
 /* Responsive layout */
 @media (max-width: 1024px) {
   .dashboard-section {
@@ -1272,10 +1776,18 @@ const startSimulation = () => {
     padding-right: 0;
     margin-bottom: 40px;
   }
-  
+
   .hero-logo {
     max-width: 200px;
     margin-bottom: 20px;
+  }
+
+  .llm-stage-row {
+    flex-direction: column;
+  }
+
+  .llm-stage-controls {
+    min-width: 100%;
   }
 }
 </style>

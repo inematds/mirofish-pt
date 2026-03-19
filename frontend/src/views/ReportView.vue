@@ -33,6 +33,12 @@
       </div>
     </header>
 
+    <!-- Project Title Bar -->
+    <div class="project-title-bar" v-if="projectData">
+      <h1 class="project-title-name">{{ projectData.name || 'Projeto Sem Nome' }}</h1>
+      <div class="project-title-id">{{ projectData.project_id }}</div>
+    </div>
+
     <!-- Main Content Area -->
     <main class="content-area">
       <!-- Left Panel: Graph -->
@@ -344,5 +350,25 @@ onMounted(() => {
 
 .panel-wrapper.left {
   border-right: 1px solid #EAEAEA;
+}
+
+/* Project Title Bar */
+.project-title-bar {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fafafa;
+}
+.project-title-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+}
+.project-title-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #999;
+  margin-top: 2px;
 }
 </style>

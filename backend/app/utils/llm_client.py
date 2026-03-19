@@ -203,7 +203,7 @@ class LLMClient:
             result = subprocess.run(
                 ["claude", "-p", "--output-format", "json"],
                 input=prompt,
-                capture_output=True, text=True, timeout=120,
+                capture_output=True, text=True, timeout=300,
                 cwd="/tmp"
             )
 
@@ -221,7 +221,7 @@ class LLMClient:
             return self._clean_content(content)
 
         except subprocess.TimeoutExpired:
-            raise RuntimeError("Claude CLI timed out after 120s")
+            raise RuntimeError("Claude CLI timed out after 300s")
 
     def _chat_codex_cli(
         self,

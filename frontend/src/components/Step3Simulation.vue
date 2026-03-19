@@ -684,9 +684,33 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(() => {
+onMounted(async () => {
   addLog('Inicializando execução da simulação - Etapa 3')
   if (props.simulationId) {
+    // First check if simulation already completed or is running
+    try {
+      const res = await getRunStatus(props.simulationId)
+      if (res.success && res.data) {
+        const status = res.data.runner_status
+        if (status === 'completed' || status === 'stopped') {
+          addLog('✓ Simulação já concluída — pronta para gerar relatório')
+          phase.value = 2
+          runStatus.value = res.data
+          emit('update-status', 'completed')
+          return
+        }
+        if (status === 'running') {
+          addLog('Simulação em andamento — retomando monitoramento...')
+          phase.value = 1
+          runStatus.value = res.data
+          startStatusPolling()
+          startDetailPolling()
+          return
+        }
+      }
+    } catch (e) {
+      // Status check failed, proceed to start
+    }
     doStartSimulation()
   }
 })
