@@ -359,8 +359,8 @@ class SimulationConfigGenerator:
             event_config=event_config,
             twitter_config=twitter_config,
             reddit_config=reddit_config,
-            llm_model=self.model_name,
-            llm_base_url=self.base_url,
+            llm_model=self.llm.model,
+            llm_base_url=self.llm.base_url,
             generation_reasoning=" | ".join(reasoning_parts)
         )
 
